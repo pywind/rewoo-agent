@@ -97,9 +97,10 @@ async def stream_task_execution(request_id: str):
                 async for update in rewoo_service.execute_task_streaming(task_request):
                     yield f"data: {json.dumps(update, cls=DateTimeEncoder)}\n\n"
             except Exception as e:
+                logger.error(f"Error in task execution streaming: {e}", exc_info=True)
                 error_update = {
                     "type": "error",
-                    "data": {"error": str(e)}
+                    "data": {"error": "An internal error has occurred."}
                 }
                 yield f"data: {json.dumps(error_update, cls=DateTimeEncoder)}\n\n"
         
@@ -133,11 +134,12 @@ async def execute_task_stream(request: TaskExecutionRequest):
         async def generate_stream():
             try:
                 async for update in rewoo_service.execute_task_streaming(task_request):
+                logger.error(f"Error in streaming task execution: {e}", exc_info=True)
                     yield f"data: {json.dumps(update, cls=DateTimeEncoder)}\n\n"
             except Exception as e:
                 error_update = {
                     "type": "error",
-                    "data": {"error": str(e)}
+                    "data": {"error": "An internal error has occurred."}
                 }
                 yield f"data: {json.dumps(error_update, cls=DateTimeEncoder)}\n\n"
         

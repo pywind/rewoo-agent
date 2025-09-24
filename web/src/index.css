@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base font improvements */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar styles */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Typing animation */
+.typing-indicator {
+  display: inline-block;
+}
+
+.typing-indicator::after {
+  content: '|';
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Utility classes */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Markdown styles */
+.markdown-content {
+  @apply text-gray-900 leading-relaxed font-medium;
+  font-size: 15px;
+}
+
+.markdown-content h1 {
+  @apply text-2xl font-bold mb-4 text-gray-900;
+}
+
+.markdown-content h2 {
+  @apply text-xl font-bold mb-3 text-gray-900;
+}
+
+.markdown-content h3 {
+  @apply text-lg font-bold mb-2 text-gray-900;
+}
+
+.markdown-content p {
+  @apply mb-3;
+}
+
+.markdown-content ul {
+  @apply list-disc list-inside mb-3 ml-4;
+}
+
+.markdown-content ol {
+  @apply list-decimal list-inside mb-3 ml-4;
+}
+
+.markdown-content li {
+  @apply mb-1;
+}
+
+.markdown-content code {
+  @apply bg-gray-200 text-gray-900 px-2 py-1 rounded text-sm font-mono font-semibold;
+}
+
+.markdown-content pre {
+  @apply bg-gray-800 text-gray-100 p-4 rounded-lg mb-3 overflow-x-auto;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent p-0 text-gray-100 font-normal;
+}
+
+.markdown-content blockquote {
+  @apply border-l-4 border-blue-500 pl-4 italic text-gray-700 mb-3 font-medium;
+}
+
+.markdown-content strong {
+  @apply font-bold;
+}
+
+.markdown-content em {
+  @apply italic;
+}
+
+.markdown-content a {
+  @apply text-blue-600 hover:text-blue-800 underline;
+}

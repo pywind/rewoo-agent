@@ -31,6 +31,23 @@ router = APIRouter(prefix="/agent", tags=["Tools API"])
 # Initialize ReWOO service
 rewoo_service = ReWOOService()
 
+
+# Helper functions
+
+async def create_streaming_generator(task_request: TaskRequest):
+    """Common streaming generator function for task execution."""
+    try:
+        async for update in rewoo_service.execute_task_streaming(task_request):
+            yield f"data: {json.dumps(update, cls=DateTimeEncoder)}\n\n"
+    except Exception as e:
+        logger.exception(f"Error in task execution streaming: {e}", exc_info=True)
+        error_update = {
+            "type": "error",
+            "data": {"error": "An internal error has occurred."}
+        }
+        yield f"data: {json.dumps(error_update, cls=DateTimeEncoder)}\n\n"
+
+
 # API Routes
 
 @router.get("/tools")
@@ -92,20 +109,8 @@ async def stream_task_execution(request_id: str):
             configuration=None
         )
         
-        async def generate_stream():
-            try:
-                async for update in rewoo_service.execute_task_streaming(task_request):
-                    yield f"data: {json.dumps(update, cls=DateTimeEncoder)}\n\n"
-            except Exception as e:
-                logger.error(f"Error in task execution streaming: {e}", exc_info=True)
-                error_update = {
-                    "type": "error",
-                    "data": {"error": "An internal error has occurred."}
-                }
-                yield f"data: {json.dumps(error_update, cls=DateTimeEncoder)}\n\n"
-        
         return StreamingResponse(
-            generate_stream(),
+            create_streaming_generator(task_request),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -131,20 +136,8 @@ async def execute_task_stream(request: TaskExecutionRequest):
             configuration=None
         )
         
-        async def generate_stream():
-            try:
-                async for update in rewoo_service.execute_task_streaming(task_request):
-                logger.error(f"Error in streaming task execution: {e}", exc_info=True)
-                    yield f"data: {json.dumps(update, cls=DateTimeEncoder)}\n\n"
-            except Exception as e:
-                error_update = {
-                    "type": "error",
-                    "data": {"error": "An internal error has occurred."}
-                }
-                yield f"data: {json.dumps(error_update, cls=DateTimeEncoder)}\n\n"
-        
         return StreamingResponse(
-            generate_stream(),
+            create_streaming_generator(task_request),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

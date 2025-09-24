@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Bot, User, Loader2 } from 'lucide-react';
 import StreamingChat from './StreamingChat.jsx';
 import TaskStatus from './TaskStatus.jsx';
 import ExampleQueries from './ExampleQueries.jsx';
 import ProgressBar from './ProgressBar.jsx';
 import LanguageSelector from './LanguageSelector.jsx';
+import ChatInput from './ChatInput.jsx';
 import { API_ENDPOINTS } from '../config/api.js';
 import { useTranslation } from '../hooks/useTranslation.js';
 
@@ -16,7 +17,6 @@ function ChatInterface() {
   const [currentStreamingMessage, setCurrentStreamingMessage] = useState('');
   const [currentTaskStatus, setCurrentTaskStatus] = useState(null);
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,6 +86,7 @@ function ChatInterface() {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullResponse = '';
+      let hasError = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -170,14 +171,31 @@ function ChatInterface() {
                 const errorMessage = errorData.error || 'An unknown error occurred';
                 console.error('Backend error:', errorMessage);
                 
-                // Set error status and break the streaming loop
+                // Set error flag
+                hasError = true;
+                
+                // Set error status and add error message to chat
                 setCurrentTaskStatus({ status: 'failed', message: `${t('error')}: ${errorMessage}` });
-                throw new Error(errorMessage);
+                
+                // Add error message to chat immediately
+                const errorChatMessage = {
+                  id: Date.now() + 1,
+                  type: 'bot',
+                  content: `❌ ${t('error')}: ${errorMessage}`,
+                  timestamp: new Date(),
+                  isError: true,
+                  isComplete: true
+                };
+                setMessages(prev => [...prev, errorChatMessage]);
+                
+                // Break out of the streaming loop
+                reader.cancel();
+                return;
               }
             } catch (e) {
               console.error('Error parsing SSE data:', e);
-              // If it's our custom error, re-throw it to be handled by the outer catch
-              if (e.message !== 'Unexpected end of JSON input') {
+              // Only re-throw if it's not a JSON parsing error and not our custom error
+              if (e.message !== 'Unexpected end of JSON input' && !e.message.includes('An internal error has occurred')) {
                 throw e;
               }
             }
@@ -185,8 +203,8 @@ function ChatInterface() {
         }
       }
 
-      // Add the final bot message
-      if (fullResponse || currentStreamingMessage) {
+      // Add the final bot message only if no error occurred
+      if (!hasError && (fullResponse || currentStreamingMessage)) {
         const botMessage = {
           id: Date.now() + 1,
           type: 'bot',
@@ -223,39 +241,33 @@ function ChatInterface() {
       setIsStreaming(false);
       setCurrentStreamingMessage('');
       setCurrentTaskStatus(null);
-      // Refocus the input after the operation completes
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
     }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setInputMessage(e.target.value);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200 p-4">
+      <div className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 p-4 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Bot className="mr-3 text-blue-600" size={32} />
-              {t('header_title')}
+              <div className="mr-3 p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                <Bot className="text-white" size={24} />
+              </div>
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {t('header_title')}
+              </span>
             </h1>
-            <p className="text-gray-600 mt-1">
-              {t('header_subtitle')}
-            </p>
+            <p className="text-sm text-gray-600 mt-1 ml-12">{t('header_subtitle')}</p>
           </div>
-          <LanguageSelector />
+          <div className="flex items-center space-x-3">
+            <LanguageSelector />
+            <div className="h-8 w-px bg-gray-300"></div>
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Online</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -264,10 +276,18 @@ function ChatInterface() {
         <div className="max-w-4xl mx-auto h-full">
           <div className="h-full overflow-y-auto custom-scrollbar p-4 space-y-4">
             {messages.length === 0 && !isStreaming && (
-              <div className="text-center text-gray-500 mt-8">
-                <Bot size={48} className="mx-auto mb-4 text-gray-400" />
-                <p className="text-lg font-medium">{t('welcome')}</p>
-                <p className="text-sm mt-2 mb-8">{t('ask_anything')}</p>
+              <div className="text-center mt-12 reveal">
+                <div className="floating mb-8">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl flex items-center justify-center">
+                    <Bot size={40} className="text-white" />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2 gradient-text">
+                  {t('welcome')}
+                </h2>
+                <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto leading-relaxed">
+                  {t('ask_anything')}
+                </p>
                 <div className="max-w-4xl mx-auto">
                   <ExampleQueries onSelectQuery={setInputMessage} />
                 </div>
@@ -277,30 +297,30 @@ function ChatInterface() {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} reveal`}
               >
                 <div className={`flex w-full ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'} items-end`}>
                   <div className={`flex-shrink-0 ${message.type === 'user' ? 'ml-3' : 'mr-3'}`}> 
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md ${
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg hover-scale ${
                       message.type === 'user' 
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-500/25' 
                         : message.isError 
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
+                        ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-red-500/25'
+                        : 'bg-gradient-to-br from-gray-600 to-gray-800 text-white shadow-gray-600/25'
                     }`}>
-                      {message.type === 'user' ? <User size={20} /> : <Bot size={20} />}
+                      {message.type === 'user' ? <User size={18} /> : <Bot size={18} />}
                     </div>
                   </div>
                   <div
-                    className={`rounded-xl px-4 py-3 ${
+                    className={`rounded-2xl px-5 py-4 card-modern ${
                       message.type === 'user' 
-                        ? 'max-w-2xl bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' 
+                        ? 'max-w-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-glow-blue border-0' 
                         : message.isError
-                        ? 'max-w-4xl bg-red-50 text-red-800 border border-red-200 shadow-sm'
-                        : 'max-w-4xl bg-white text-gray-800 border border-gray-200 shadow-sm'
+                        ? 'max-w-4xl bg-gradient-to-br from-red-50 to-red-100/50 text-red-800 border border-red-200/50 shadow-glow'
+                        : 'max-w-4xl bg-white/90 backdrop-blur-sm text-gray-800 border border-gray-200/50 shadow-glow hover:shadow-glow-blue'
                     }`}
                   >
-                    <div className={`${message.type === 'user' ? 'text-white' : 'text-gray-800'} whitespace-pre-wrap break-words`}>
+                    <div className={`${message.type === 'user' ? 'text-white' : 'text-gray-800'} whitespace-pre-wrap break-words leading-relaxed`}>
                       {message.type === 'user' ? (
                         message.content
                       ) : (
@@ -311,7 +331,7 @@ function ChatInterface() {
                         />
                       )}
                     </div>
-                    <div className={`text-xs mt-2 opacity-75 ${
+                    <div className={`text-xs mt-3 opacity-70 font-medium ${
                       message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
                     }`}>
                       {message.timestamp.toLocaleTimeString()}
@@ -323,16 +343,16 @@ function ChatInterface() {
 
             {/* Current streaming message */}
             {isStreaming && currentStreamingMessage && (
-              <div className="flex justify-start">
+              <div className="flex justify-start reveal">
                 <div className="flex w-full items-end">
                   <div className="flex-shrink-0 mr-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 text-white flex items-center justify-center shadow-md">
-                      <Bot size={20} />
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-600 to-gray-800 text-white shadow-lg pulse-glow">
+                      <Bot size={18} />
                     </div>
                   </div>
-                  <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-xl px-4 py-3 max-w-4xl">
+                  <div className="bg-white/90 backdrop-blur-sm text-gray-800 border border-gray-200/50 shadow-glow-blue card-modern rounded-2xl px-5 py-4 max-w-4xl">
                     {currentStreamingMessage && (
-                      <div className="text-gray-800">
+                      <div className="text-gray-800 leading-relaxed">
                         <StreamingChat 
                           content={currentStreamingMessage} 
                           isComplete={false} 
@@ -340,7 +360,7 @@ function ChatInterface() {
                         />
                       </div>
                     )}
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-4 space-y-3">
                       {/* Progress bar for streaming messages */}
                       {currentTaskStatus?.progress !== undefined && currentTaskStatus.progress > 0 && (
                         <ProgressBar 
@@ -358,9 +378,13 @@ function ChatInterface() {
                             progress={currentTaskStatus.progress}
                           />
                         )}
-                        <div className="flex items-center text-xs text-blue-600 font-medium ml-auto">
-                          <Loader2 className="animate-spin mr-2" size={12} />
-                          {t('streaming')}
+                        <div className="flex items-center text-xs text-blue-600 font-semibold ml-auto">
+                          <div className="loading-dots mr-2">
+                            <div className="dot"></div>
+                            <div className="dot"></div>
+                            <div className="dot"></div>
+                          </div>
+                          {t('streaming') || 'AI is responding...'}
                         </div>
                       </div>
                     </div>
@@ -371,23 +395,27 @@ function ChatInterface() {
 
             {/* Loading indicator when starting */}
             {isStreaming && !currentStreamingMessage && (
-              <div className="flex justify-start">
+              <div className="flex justify-start reveal">
                 <div className="flex w-full items-end">
                   <div className="flex-shrink-0 mr-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-gray-600 to-gray-700 text-white flex items-center justify-center shadow-md">
-                      <Bot size={20} />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 text-white flex items-center justify-center shadow-lg pulse-glow">
+                      <Bot size={18} />
                     </div>
                   </div>
-                  <div className="bg-white text-gray-800 border border-gray-200 shadow-sm rounded-xl px-4 py-3 min-w-64 max-w-2xl">
-                    <div className="flex items-center mb-2">
-                      <Loader2 className="animate-spin mr-2 text-blue-600" size={16} />
-                      <span className="font-medium text-gray-800">
+                  <div className="bg-white/90 backdrop-blur-sm text-gray-800 border border-gray-200/50 shadow-glow card-modern rounded-2xl px-5 py-4 min-w-64 max-w-2xl">
+                    <div className="flex items-center mb-3">
+                      <div className="loading-dots mr-3">
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                        <div className="dot"></div>
+                      </div>
+                      <span className="font-semibold text-gray-800">
                         {currentTaskStatus?.message || t('initializing_task')}
                       </span>
                     </div>
                     {/* Progress bar */}
                     {currentTaskStatus?.progress !== undefined && currentTaskStatus.progress > 0 && (
-                      <div className="mt-2">
+                      <div className="mt-3">
                         <ProgressBar 
                           progress={currentTaskStatus.progress} 
                           message={t('processing')}
@@ -406,37 +434,12 @@ function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <textarea
-                ref={inputRef}
-                value={inputMessage}
-                onChange={handleInputChange}
-                onKeyPress={handleKeyPress}
-                placeholder={t('input_placeholder')}
-                className="w-full resize-none border-2 border-gray-200 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium shadow-sm transition-all duration-200 hover:border-gray-300"
-                rows="2"
-                disabled={isStreaming}
-                autoFocus
-              />
-            </div>
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isStreaming}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-6 py-3 flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none disabled:hover:scale-100"
-            >
-              {isStreaming ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <Send size={20} />
-              )}
-              <span>{isStreaming ? t('sending') : t('send')}</span>
-            </button>
-          </div>
-        </div>
-      </div>
+      <ChatInput
+        inputMessage={inputMessage}
+        setInputMessage={setInputMessage}
+        onSendMessage={handleSendMessage}
+        isStreaming={isStreaming}
+      />
     </div>
   );
 }

@@ -1,37 +1,40 @@
 import React from 'react';
 import { Search, Calculator, Globe, BookOpen } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation.js';
 
 const ExampleQueries = ({ onSelectQuery }) => {
+  const t = useTranslation();
+  
   const examples = [
     {
       icon: <Search className="text-blue-500" size={20} />,
-      title: "Research Task",
-      query: "Research the latest developments in artificial intelligence and machine learning, including recent breakthroughs and applications",
-      category: "Research"
+      title: t('example_research_title'),
+      query: t('example_research_query'),
+      category: t('example_research_category')
     },
     {
       icon: <Calculator className="text-green-500" size={20} />,
-      title: "Mathematical Calculation",
-      query: "Calculate the compound interest for an investment of $10,000 at 5% annual interest rate for 10 years",
-      category: "Calculation"
+      title: t('example_calculation_title'),
+      query: t('example_calculation_query'),
+      category: t('example_calculation_category')
     },
     {
       icon: <Globe className="text-purple-500" size={20} />,
-      title: "Web Search",
-      query: "Find information about the current weather trends and climate change impacts in Southeast Asia",
-      category: "Search"
+      title: t('example_search_title'),
+      query: t('example_search_query'),
+      category: t('example_search_category')
     },
     {
       icon: <BookOpen className="text-orange-500" size={20} />,
-      title: "Knowledge Query",
-      query: "Explain the concept of quantum computing and its potential applications in cryptography",
-      category: "Knowledge"
+      title: t('example_knowledge_title'),
+      query: t('example_knowledge_query'),
+      category: t('example_knowledge_category')
     }
   ];
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-700 mb-4">Try these examples:</h3>
+      <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('try_examples')}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {examples.map((example, index) => (
           <div
